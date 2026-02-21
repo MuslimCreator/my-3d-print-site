@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My 3D Print Site</title>
+    <style>
+        :root {
+            --primary: #3b82f6;
+            --accent: #f59e0b;
+        }
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #0f172a;
+            color: white;
+            margin: 0;
+            padding: 20px;
+        }
+        .btn-glow {
+            background: linear-gradient(145deg, var(--primary), #1d4ed8);
+            border: none;
+            color: white;
+            padding: 10px 20px;
+            border-radius: 10px;
+            cursor: pointer;
+            font-weight: bold;
+            box-shadow: 0 0 10px var(--primary);
+            transition: box-shadow 0.3s;
+        }
+        .btn-glow:hover {
+            box-shadow: 0 0 20px var(--primary);
+        }
+    </style>
+</head>
+<body>
+    <h1>Welcome to My 3D Print Site</h1>
+    <section id="game-zone" style="margin-top: 50px; text-align: center;">
+        <div class="dashboard" style="background: linear-gradient(145deg, #1e293b, #0f172a); border: 2px solid var(--accent);">
+            <h2 style="color: var(--accent); margin-bottom: 5px;">🕹️ M5C Speed Challenge</h2>
+            <p>How fast can you "print" a 3D Crescent Moon? Tap the bed to build layers!</p>
+            
+            <div id="game-screen" style="height: 200px; background: #000; border-radius: 15px; position: relative; overflow: hidden; display: flex; align-items: flex-end; justify-content: center; border: 3px solid #334155;">
+                <div id="player-model" style="width: 100px; background: var(--primary); height: 0%; transition: height 0.1s; border-top: 4px solid white; display: flex; align-items: center; justify-content: center; font-size: 2rem;">🌙</div>
+                
+                <div id="game-overlay" style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);">
+                    <button class="btn-glow" id="start-btn" onclick="startGame()">START GAME</button>
+                </div>
+            </div>
+
+            <div style="display: flex; justify-content: space-around; margin-top: 20px;">
+                <div>Time Left: <span id="timer" style="color: var(--accent); font-weight: bold;">10</span>s</div>
+                <div>Build Progress: <span id="progress" style="color: var(--primary); font-weight: bold;">0</span>%</div>
+            </div>
+
+            <button id="print-tap" class="btn-glow" style="margin-top: 20px; display: none;" onmousedown="tapPrint()">TAP TO PRINT!</button>
+        </div>
+    </section>
+
+    <section id="order-zone" style="margin-top: 50px; text-align: center;">
+        <div class="dashboard" style="background: linear-gradient(145deg, #1e293b, #0f172a); border: 2px solid var(--accent); padding: 20px;">
+            <h2 style="color: var(--accent); margin-bottom: 5px;">🛒 Order Prints from Thingiverse</h2>
+            <p>Paste a Thingiverse URL or ID to order a custom print!</p>
+            
+            <input type="text" id="thingiverse-input" placeholder="https://www.thingiverse.com/thing:123456 or just 123456" style="width: 80%; padding: 10px; border-radius: 10px; border: none; margin-bottom: 20px;">
+            <br>
+            <button class="btn-glow" onclick="loadModel()">Load Model</button>
+            
+            <div id="model-info" style="display: none; margin-top: 20px;">
+                <h3 id="model-name"></h3>
+                <img id="model-image" style="max-width: 200px; border-radius: 10px; display: none;">
+                <p id="model-description"></p>
+                <input type="text" id="customer-name" placeholder="Your Name" style="width: 80%; padding: 10px; border-radius: 10px; border: none; margin-bottom: 10px;">
+                <input type="email" id="customer-email" placeholder="Your Email" style="width: 80%; padding: 10px; border-radius: 10px; border: none; margin-bottom: 20px;">
+                <button class="btn-glow" onclick="orderPrint()">Order This Print</button>
+            </div>
+        </div>
+    </section>
+
+    <script>
+        let gameActive = false;
+        let timeLeft = 10;
+        let progress = 0;
+        let timerInterval;
+
+        function startGame() {
+            gameActive = true;
+            progress = 0;
+            timeLeft = 10;
+            document.getElementById('start-btn').style.display = 'none';
+            document.getElementById('print-tap').style.display = 'block';
+            document.getElementById('progress').innerText = progress;
+            document.getElementById('player-model').style.height = '0%';
+            
+            timerInterval = setInterval(() => {
+                timeLeft--;
+                document.getElementById('timer').innerText = timeLeft;
+                if (timeLeft <= 0) endGame(false);
+            }, 1000);
+        }
+
+        function tapPrint() {
+            if (!gameActive) return;
+            
+            progress += 4; // Each tap adds 4% progress
+            if (progress > 100) progress = 100;
+            
+            document.getElementById('progress').innerText = progress;
+            document.getElementById('player-model').style.height = progress + '%';
+
+            // Add a little "shake" effect on tap
+            document.getElementById('game-screen').style.transform = "scale(1.02)";
+            setTimeout(() => document.getElementById('game-screen').style.transform = "scale(1)", 50);
+
+            if (progress >= 100) endGame(true);
+        }
+
+        function endGame(win) {
+            gameActive = false;
+            clearInterval(timerInterval);
+            document.getElementById('print-tap').style.display = 'none';
+            document.getElementById('start-btn').style.display = 'block';
+            document.getElementById('start-btn').innerText = win ? "MASHALLAH! PLAY AGAIN?" : "OUT OF FILAMENT! TRY AGAIN?";
+            
+            if (win) {
+                alert("Success! You printed the model in record time! 🚀");
+            } else {
+                alert("Too slow! The AnkerMake M5C could have done it faster! 😉");
+            }
+        }
+
+        async function loadModel() {
+            const input = document.getElementById('thingiverse-input').value.trim();
+            let url;
+            if (input.includes('thingiverse.com/thing:')) {
+                url = input;
+            } else if (/^\d+$/.test(input)) {
+                url = 'https://www.thingiverse.com/thing:' + input;
+            } else {
+                alert('Please enter a valid Thingiverse URL or ID.');
+                return;
+            }
+
+            document.getElementById('model-name').innerHTML = '<a href="' + url + '" target="_blank" style="color: var(--accent);">View Model on Thingiverse</a>';
+            document.getElementById('model-description').innerText = 'Click the link to view the model details. To order a print, contact us with this link.';
+            document.getElementById('model-image').style.display = 'none';
+            document.getElementById('model-info').style.display = 'block';
+        }
+
+        function orderPrint() {
+            const name = document.getElementById('customer-name').value.trim();
+            const email = document.getElementById('customer-email').value.trim();
+            const modelUrl = document.getElementById('thingiverse-input').value.trim();
+            if (!name || !email || !modelUrl) {
+                alert('Please fill in your name, email, and the model URL.');
+                return;
+            }
+            const subject = encodeURIComponent('3D Print Order - ' + new Date().toLocaleDateString());
+            const body = encodeURIComponent(`Name: ${name}\nEmail: ${email}\nModel URL: ${modelUrl}\n\nPlease arrange printing this model.`);
+            const webhookUrl = 'https://discord.com/api/webhooks/1474634460170289364/AN8iG8RbzWLnZIRf4x-0-NzbtTzbAxTofBJj0NzIpc2JPrBIPPTnd8WY_vtfWgxx-GdT';
+            const message = {
+                content: `New 3D Print Order!\n**Name:** ${name}\n**Email:** ${email}\n**Model URL:** ${modelUrl}\n**Date:** ${new Date().toLocaleDateString()}`
+            };
+
+            fetch(webhookUrl, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(message)
+            })
+            .then(response => {
+                if (response.ok) {
+                    alert('Order sent to Discord!');
+                } else {
+                    alert('Error sending to Discord.');
+                }
+            })
+            .catch(error => alert('Error: ' + error));
+        }
+    </script>
+</body>
+</html>
